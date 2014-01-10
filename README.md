@@ -6,6 +6,10 @@ MediaWiki api-createaccount CLI client for testing
 Requires PHP CLI installed. Assumes running on Mac OS X or other system where
 running "open" command will launch an image viewer.
 
+Requires core updates: https://gerrit.wikimedia.org/r/#/c/106844/
+
+and ConfirmEdit updates: https://gerrit.wikimedia.org/r/#/c/106845/
+
 
 Running
 =======
