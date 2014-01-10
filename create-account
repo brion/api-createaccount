@@ -1,0 +1,144 @@
+#!/usr/bin/env php
+<?php
+
+define('MW_API_BASE', 'http://hawkeye.local/core/api.php');
+
+global $cookiejar;
+$cookiejar = '';
+
+function api_exec($method, $params) {
+	$params['format'] = 'json';
+	$urlparams = http_build_query($params);
+	$url = MW_API_BASE . "?" . $urlparams;
+	
+	$context = httpContext( $method );
+
+	//$result = file_get_contents($url, false, $context);
+	$stream = fopen($url, 'r', false, $context );
+	$meta = stream_get_meta_data( $stream );
+	$result = stream_get_contents( $stream );
+	fclose( $stream );
+	
+	handleCookies( $meta );
+	
+	$data = json_decode($result, true);
+	if ($data) {
+		return $data;
+	} else {
+		echo "HORRIBLE FAILURE\n";
+		echo $result;
+		echo "\n";
+		exit(1);
+	}
+}
+
+function httpContext( $method ) {
+	global $cookiejar;
+	
+	$contextParams = array(
+		'http' => array(
+			'method' => $method
+		)
+	);
+	if ( $cookiejar ) {
+		$contextParams['http']['header'] = "Cookie: $cookiejar\r\n";
+	}
+	return stream_context_create( $contextParams );
+}
+
+function handleCookies( $meta ) {
+	global $cookiejar;
+	$headers = $meta['wrapper_data'];
+	$httpResultLine = array_shift( $headers );
+	foreach( $headers as $header ) {
+		$bits = explode( ':', $header, 2 );
+		$header = trim( strtolower( $bits[0] ) );
+		$value = trim( $bits[1] );
+		if ($header == 'set-cookie') {
+			$parts = explode(';', $value);
+			$cookieValue = $parts[0];
+			if ($cookiejar !== '') {
+				$cookiejar .= '; ';
+			}
+			$cookiejar .= $cookieValue;
+		}
+	}
+}
+
+function api_get($params) {
+	return api_exec('GET', $params);
+}
+
+function api_post($params) {
+	return api_exec('POST', $params);
+}
+
+// download a file with the cookies
+function download_file($url) {
+	$context = httpContext( $method );
+	return file_get_contents( $url, false, $context );
+}
+
+function hostOfUrl($url) {
+	$data = parse_url($url);
+	return $data['scheme'] . "://" . $data['host'];
+}
+
+function showImageData($data) {
+	$tmpfile = '/tmp/captcha' . mt_rand(0, 9999999) . '.png';
+	file_put_contents( $tmpfile, $data );
+	`open $tmpfile`;
+}
+
+$username = 'Test99999';
+$pass = 'kickass';
+
+// Get token and captcha info
+echo "\nInitial request: should return token and captcha info\n";
+$params = array(
+	'action' => 'createaccount',
+	'name' => $username,
+	'password' => $pass,
+);
+var_export($params);
+$result = api_post( $params );
+var_export($result);
+
+$status = $result['createaccount']['result'];
+if ( $status === 'success' ) {
+	echo "Success!\n";
+	exit( 0 );
+} elseif ( $status === 'needtoken' ) {
+
+	$token = $result['createaccount']['token'];
+	$params['token'] = $token;
+
+	if (isset( $result['createaccount']['captcha'] ) ) {
+		$captcha = $result['createaccount']['captcha'];
+		if ($captcha['type'] == 'image') {
+			$url = $captcha['url'];
+			if (substr($url, 0, 2) == '//') {
+				$url = 'https:' . $url;
+			} elseif (substr($url, 0, 1) == '/') {
+				$url = hostOfUrl(MW_API_BASE) . $url;
+			}
+			$image = download_file($url);
+			showImageData($image);
+		}
+		
+		print "Captcha word: ";
+		$input = trim( fgets(STDIN) );
+		print "\n";
+
+		$params['captchaid'] = $captcha['id'];
+		$params['captchaword'] = $input;
+	}
+
+	echo "\nSecond request\n";
+	var_export($params);
+	$result = api_post( $params );
+	var_export($result);
+} else {
+	echo "Fail!\n";
+	exit( 1 );
+}
