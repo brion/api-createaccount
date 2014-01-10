@@ -90,7 +90,7 @@ function showImageData($data) {
 	`open $tmpfile`;
 }
 
-$username = 'Test99999';
+$username = 'Test' . mt_rand(9999, 999999);
 $pass = 'kickass';
 
 // Get token and captcha info
