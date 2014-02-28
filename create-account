@@ -105,10 +105,10 @@ $result = api_post( $params );
 var_export($result);
 
 $status = $result['createaccount']['result'];
-if ( $status === 'success' ) {
+if ( strtolower( $status ) === 'success' ) {
 	echo "Success!\n";
 	exit( 0 );
-} elseif ( $status === 'needtoken' ) {
+} elseif ( strtolower( $status ) === 'needtoken' ) {
 
 	$token = $result['createaccount']['token'];
 	$params['token'] = $token;
