@@ -94,7 +94,7 @@ $username = 'Test' . mt_rand(9999, 999999);
 $pass = 'kickass';
 
 // Get token and captcha info
-echo "\nInitial request: should return token and captcha info\n";
+echo "\nInitial request: should return token but not yet captcha info\n";
 $params = array(
 	'action' => 'createaccount',
 	'name' => $username,
@@ -104,41 +104,46 @@ var_export($params);
 $result = api_post( $params );
 var_export($result);
 
-$status = $result['createaccount']['result'];
-if ( strtolower( $status ) === 'success' ) {
-	echo "Success!\n";
-	exit( 0 );
-} elseif ( strtolower( $status ) === 'needtoken' ) {
-
-	$token = $result['createaccount']['token'];
-	$params['token'] = $token;
-
-	if (isset( $result['createaccount']['captcha'] ) ) {
-		$captcha = $result['createaccount']['captcha'];
-		if ($captcha['type'] == 'image') {
-			$url = $captcha['url'];
-			if (substr($url, 0, 2) == '//') {
-				$url = 'https:' . $url;
-			} elseif (substr($url, 0, 1) == '/') {
-				$url = hostOfUrl(MW_API_BASE) . $url;
-			}
-			$image = download_file($url);
-			showImageData($image);
-		}
-		
-		print "Captcha word: ";
-		$input = trim( fgets(STDIN) );
-		print "\n";
-
-		$params['captchaid'] = $captcha['id'];
-		$params['captchaword'] = $input;
+while (true) {
+	if (isset( $result['error'] )) {
+		echo "Fail!\n";
+		exit( 1 );
 	}
+	$status = $result['createaccount']['result'];
+	if ( strtolower( $status ) === 'success' ) {
+		echo "Success!\n";
+		exit( 0 );
+	} else {
 
-	echo "\nSecond request\n";
-	var_export($params);
-	$result = api_post( $params );
-	var_export($result);
-} else {
-	echo "Fail!\n";
-	exit( 1 );
+		if (strtolower( $status ) === 'needtoken') {
+			$token = $result['createaccount']['token'];
+			$params['token'] = $token;
+		}
+
+		if (isset( $result['createaccount']['captcha'] ) ) {
+			$captcha = $result['createaccount']['captcha'];
+			if ($captcha['type'] == 'image') {
+				$url = $captcha['url'];
+				if (substr($url, 0, 2) == '//') {
+					$url = 'https:' . $url;
+				} elseif (substr($url, 0, 1) == '/') {
+					$url = hostOfUrl(MW_API_BASE) . $url;
+				}
+				$image = download_file($url);
+				showImageData($image);
+			}
+		
+			print "Captcha word: ";
+			$input = trim( fgets(STDIN) );
+			print "\n";
+
+			$params['captchaid'] = $captcha['id'];
+			$params['captchaword'] = $input;
+		}
+
+		echo "\nSecond request\n";
+		var_export($params);
+		$result = api_post( $params );
+		var_export($result);
+	}
 }
